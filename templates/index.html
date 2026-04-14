@@ -43,7 +43,7 @@ body {
 }
 
 /* ── layout ── */
-.app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+.app { max-width: 860px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
 .topbar {
   background: var(--card);
   border-bottom: 1px solid var(--border);
@@ -286,7 +286,8 @@ body {
 input[type=file] { display: none; }
 
 @media (min-width: 640px) {
-  .items-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .items-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .view { padding: 20px 24px; }
 }
 </style>
 </head>
@@ -475,9 +476,10 @@ let uploading    = false;
 function switchView(v) {
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-pill').forEach(el => el.classList.remove('active'));
-  document.getElementById(v + 'View').classList.add('active');
+  const viewEl = document.getElementById(v + 'View');
+  if (viewEl) viewEl.classList.add('active');
   document.querySelectorAll('.nav-pill').forEach(el => {
-    if (el.textContent.toLowerCase().includes(v.slice(0,4))) el.classList.add('active');
+    if (el.textContent.toLowerCase().trim().startsWith(v.slice(0,4))) el.classList.add('active');
   });
   if (v === 'dashboard') { loadDashboard(); startDashPolling(); }
 }
@@ -538,6 +540,10 @@ function changeQty(d) {
 // ── photo upload ───────────────────────────────────────────────────────────
 async function handlePhotos(input) {
   if (!input.files.length || uploading) return;
+  if (!currentGroupId) {
+    console.error('No active group — creating one first');
+    await createNewGroup();
+  }
   uploading = true;
   const zone = document.getElementById('uploadZone');
   const strip = document.getElementById('photoStrip');
@@ -678,13 +684,18 @@ async function loadDashboard() {
       fetch('/api/stats'),
       fetch('/api/listings'),
     ]);
+    if (!statsResp.ok || !itemsResp.ok) {
+      console.error('API error:', statsResp.status, itemsResp.status);
+      return;
+    }
     const stats = await statsResp.json();
     const data  = await itemsResp.json();
     const items = data.items || [];
 
-    document.getElementById('d-total').textContent = stats.total;
-    document.getElementById('d-proc').textContent  = stats.processing;
-    document.getElementById('d-value').textContent = '$' + stats.value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+    document.getElementById('d-total').textContent = stats.total ?? 0;
+    document.getElementById('d-proc').textContent  = stats.processing ?? 0;
+    const val = stats.value ?? 0;
+    document.getElementById('d-value').textContent = '$' + Number(val).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
 
     const procBadge = document.getElementById('processingBadge');
     if (stats.processing > 0) {
@@ -696,7 +707,7 @@ async function loadDashboard() {
     }
 
     renderItems(items);
-    lastItemCount = stats.total;
+    lastItemCount = stats.total ?? 0;
   } catch (e) {
     console.error('Dashboard load error:', e);
   }
