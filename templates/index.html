@@ -502,6 +502,8 @@ async function startBatch() {
   itemCond = batchCond;
   updateCondToggle();
   await createNewGroup();
+  if (dashPollTimer) clearInterval(dashPollTimer);
+  dashPollTimer = setInterval(pollBatchStatus, 8000);
 }
 
 async function createNewGroup() {
@@ -718,6 +720,28 @@ function startDashPolling() {
   dashPollTimer = setInterval(loadDashboard, 8000);
 }
 
+async function pollBatchStatus() {
+  if (!batchItems.length) return;
+  const scanning = batchItems.filter(i => i.status === 'scanning');
+  if (!scanning.length) return;
+  try {
+    const resp = await fetch('/api/listings');
+    const data = await resp.json();
+    const done = new Set((data.items || []).map(i => i.photo_id?.split('_')[0]));
+    let changed = false;
+    for (const item of batchItems) {
+      if (item.status === 'scanning') {
+        const grp = await fetch(`/api/groups/${item.group_id}/status`).then(r=>r.json()).catch(()=>null);
+        if (grp && grp.status === 'done') {
+          item.status = 'done';
+          changed = true;
+        }
+      }
+    }
+    if (changed) { renderSubmittedList(); updateBatchStats(); }
+  } catch(e) {}
+}
+
 function renderItems(items) {
   const grid = document.getElementById('itemsGrid');
   if (!items.length) {
@@ -729,15 +753,15 @@ function renderItems(items) {
     const note = item.price_note ? `<span class="note-pill">${item.price_note} price</span>` : '';
     const photoSrc = item.photo_url || '';
     const photoEl = photoSrc
-      ? `<img src="${photoSrc}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=no-photo><svg viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'1.2\\'><path d=\\'M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z\\'/><circle cx=\\'12\\' cy=\\'13\\' r=\\'4\\'/></svg></div>'">`
-      : `<div class="no-photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>`;
+      ? `<img src="${photoSrc}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'">`
+      : '';
 
     return `
     <div class="item-card" id="ic-${item.id}">
       <div class="item-photo">
-        ${photoEl}
+        ${photoEl || '<div class="no-photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>'}
         <span class="ic-badge ${cond}">${cond}</span>
-        <button class="ic-del" onclick="deleteItem('${item.id}')" title="Delete">
+        <button class="ic-del" onclick="deleteItem(${item.id})" title="Delete">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
@@ -745,26 +769,26 @@ function renderItems(items) {
       </div>
       <div class="item-body">
         <input class="item-title-input" value="${escHtml(item.title)}"
-          onblur="saveField('${item.id}','title',this.value)"
+          onblur="saveField(${item.id},'title',this.value)"
           onkeydown="if(event.key==='Enter')this.blur()">
         <div class="field-row">
           <span class="field-lbl">Price</span>
           <input class="price-input" type="number" step="0.01" value="${item.price.toFixed(2)}"
-            onblur="saveField('${item.id}','price',parseFloat(this.value))"
+            onblur="saveField(${item.id},'price',parseFloat(this.value))"
             onkeydown="if(event.key==='Enter')this.blur()">
           ${note}
         </div>
         <div class="field-row">
           <span class="field-lbl">Condition</span>
           <div style="display:flex;gap:4px">
-            <div class="cond-tog-opt ${cond==='used'?'on-used':''}" onclick="saveCondition('${item.id}','used',this)" style="padding:4px 10px;font-size:11px">Used</div>
-            <div class="cond-tog-opt ${cond==='new'?'on-new':''}" onclick="saveCondition('${item.id}','new',this)" style="padding:4px 10px;font-size:11px">New</div>
+            <div class="cond-tog-opt ${cond==='used'?'on-used':''}" onclick="saveCondition(${item.id},'used',this)" style="padding:4px 10px;font-size:11px">Used</div>
+            <div class="cond-tog-opt ${cond==='new'?'on-new':''}" onclick="saveCondition(${item.id},'new',this)" style="padding:4px 10px;font-size:11px">New</div>
           </div>
         </div>
         <div class="field-row">
           <span class="field-lbl">Category</span>
           <input class="cat-edit" value="${escHtml(item.ebay_category)}"
-            onblur="saveField('${item.id}','ebay_category',this.value)"
+            onblur="saveField(${item.id},'ebay_category',this.value)"
             onkeydown="if(event.key==='Enter')this.blur()">
         </div>
       </div>
