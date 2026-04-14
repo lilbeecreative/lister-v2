@@ -174,43 +174,37 @@ def lookup_ebay_category(title: str, hint: str = "") -> tuple[str, str]:
     return "12576", hint or "Business & Industrial"
 
 # ── Claude identification ─────────────────────────────────────────────────────
-CLAUDE_PROMPT = """You are scanning a product for eBay listing. Analyze these {n} photo(s).
+CLAUDE_PROMPT = """Read every piece of text visible in this image. Act as a high-accuracy OCR scanner.
 
-PRIORITY 1 — Read every single piece of text visible:
-- Part numbers, model numbers, serial numbers (e.g. "A75-3275", "1756-OF4", "P182050")
-- Brand names and manufacturer names
-- Specifications: voltage, amperage, size, weight, pressure ratings
-- Any alphanumeric codes on labels, stamps, or engravings
-- Even partially visible text — read what you can
+Extract:
+- Every brand name, manufacturer name, logo text
+- Every part number, model number, catalog number, item number
+- Every specification: size, voltage, amperage, pressure, weight, capacity
+- Every word on labels, tags, stickers, engravings, stampings
+- Serial numbers, date codes, revision letters (like "SER A", "REV B")
 
-PRIORITY 2 — Identify the item precisely:
-- What is this product called?
-- What industry/application is it for?
-- What makes this specific (size, rating, material)?
+Then build an eBay listing title using what you read:
+- Format: [Brand] [Part/Model Number] [Item Type] [Key Specs]
+- Be specific — use the exact numbers and text you read, not descriptions
+- Under 80 characters
 
-PRIORITY 3 — Write an eBay title:
-- Start with the brand name
-- Include the exact model/part number
-- Include the item type
-- Include key specs
-- Under 80 characters, keyword-rich
-
-Return ONLY a raw JSON object, no markdown, no backticks, nothing else:
+Return ONLY raw JSON, no markdown:
 {{
-  "title": "Brand PartNumber ItemType KeySpec [under 80 chars]",
-  "brand": "exact brand name from label",
-  "model": "exact model or part number from label",
+  "title": "exact brand + exact part number + item type + specs [under 80 chars]",
+  "brand": "exact brand text from image",
+  "model": "exact part/model number from image",
+  "all_text_found": "every piece of text you could read, comma separated",
   "item_type": "what this item is",
-  "ebay_category_hint": "most specific eBay category path",
+  "ebay_category_hint": "most specific eBay category",
   "weight_oz": 0,
   "weight_lb": 0
 }}
 
-IMPORTANT: If you see ANY alphanumeric code on the item, it goes in the title. Never describe generically when a specific model number is visible. "Meritor A75-3275S1059" is better than "Slack Adjuster". "Allen-Bradley 1756-OF4" is better than "PLC Module"."""
+If you cannot read any text at all, return "Unknown Item". Otherwise always include whatever text you DID read."""
 
 def identify_with_claude(image_parts: list[dict], photo_count: int) -> dict:
     """Send photos to Claude for identification. Returns parsed dict."""
-    prompt = CLAUDE_PROMPT.format(n=photo_count)
+    prompt = CLAUDE_PROMPT
     content = image_parts + [{"type": "text", "text": prompt}]
     for attempt in range(3):
         try:
