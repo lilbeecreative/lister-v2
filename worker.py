@@ -174,32 +174,39 @@ def lookup_ebay_category(title: str, hint: str = "") -> tuple[str, str]:
     return "12576", hint or "Business & Industrial"
 
 # ── Claude identification ─────────────────────────────────────────────────────
-CLAUDE_PROMPT = """You are an expert eBay listing specialist. Analyze these {n} photo(s) of the same item.
+CLAUDE_PROMPT = """You are scanning a product for eBay listing. Analyze these {n} photo(s).
 
-Your job:
-1. Read EVERY visible character: brand names, model numbers, part numbers, serial numbers, specs, ratings, sizes, voltages, materials — everything
-2. Identify exactly what this item is
-3. Write an eBay listing title that is keyword-rich, specific, and under 80 characters
-   - Format: [Brand] [Model/Part#] [Item Type] [Key Spec] [Size/Rating if relevant]
-   - Example: "Allen-Bradley 1756-OF4 SER A ControlLogix 4 Point Analog Output Module"
-4. Estimate weight
+PRIORITY 1 — Read every single piece of text visible:
+- Part numbers, model numbers, serial numbers (e.g. "A75-3275", "1756-OF4", "P182050")
+- Brand names and manufacturer names
+- Specifications: voltage, amperage, size, weight, pressure ratings
+- Any alphanumeric codes on labels, stamps, or engravings
+- Even partially visible text — read what you can
 
-Return ONLY a raw JSON object, no markdown, no backticks:
+PRIORITY 2 — Identify the item precisely:
+- What is this product called?
+- What industry/application is it for?
+- What makes this specific (size, rating, material)?
+
+PRIORITY 3 — Write an eBay title:
+- Start with the brand name
+- Include the exact model/part number
+- Include the item type
+- Include key specs
+- Under 80 characters, keyword-rich
+
+Return ONLY a raw JSON object, no markdown, no backticks, nothing else:
 {{
-  "title": "eBay-optimized title under 80 chars with brand, model, type, key specs",
-  "brand": "brand name only",
-  "model": "model number or part number",
-  "item_type": "what this item is in plain English",
-  "ebay_category_hint": "most specific eBay category path you can suggest",
+  "title": "Brand PartNumber ItemType KeySpec [under 80 chars]",
+  "brand": "exact brand name from label",
+  "model": "exact model or part number from label",
+  "item_type": "what this item is",
+  "ebay_category_hint": "most specific eBay category path",
   "weight_oz": 0,
   "weight_lb": 0
 }}
 
-Critical rules:
-- Only use "Unknown Item" if the image is completely blank, black, or corrupted
-- Even partial identification is far better than Unknown Item
-- The title is the most important field — be as specific as possible
-- Include every identifier visible: brand + model/part# + type + specs"""
+IMPORTANT: If you see ANY alphanumeric code on the item, it goes in the title. Never describe generically when a specific model number is visible. "Meritor A75-3275S1059" is better than "Slack Adjuster". "Allen-Bradley 1756-OF4" is better than "PLC Module"."""
 
 def identify_with_claude(image_parts: list[dict], photo_count: int) -> dict:
     """Send photos to Claude for identification. Returns parsed dict."""
@@ -215,6 +222,26 @@ def identify_with_claude(image_parts: list[dict], photo_count: int) -> dict:
             text = response.content[0].text if response.content else ""
             data = safe_json(text)
             if data.get("title"):
+                # If no model number found, do a focused retry scan
+                if not data.get("model") or len(data.get("model","")) < 3:
+                    print(f"   🔍 No model number detected, doing focused text scan...")
+                    try:
+                        retry_prompt = 'Look very carefully. Read every alphanumeric code, number, and text on the product, label, or tag. Return ONLY JSON: {"text_found": "all text you can read", "model_number": "most likely part or model number", "brand": "brand name"}'
+                        retry_resp = claude_client.messages.create(
+                            model="claude-sonnet-4-20250514",
+                            max_tokens=256,
+                            messages=[{"role": "user", "content": image_parts + [{"type": "text", "text": retry_prompt}]}],
+                        )
+                        rd = safe_json(retry_resp.content[0].text if retry_resp.content else "")
+                        if rd.get("model_number") and len(rd.get("model_number","")) > 3:
+                            brand = rd.get("brand") or data.get("brand","")
+                            model = rd["model_number"]
+                            itype = data.get("item_type","")
+                            data["title"] = f"{brand} {model} {itype}".strip()[:80]
+                            data["model"] = model
+                            print(f"   🔍 Refined title: {data['title']}")
+                    except Exception:
+                        pass
                 return data
             print(f"   ⚠️  Claude returned empty title, attempt {attempt+1}/3")
         except anthropic.RateLimitError:
@@ -394,25 +421,35 @@ def process_group(group: dict):
         price_note   = "used" if price_new == 0 and price_used > 0 else ""
 
     # Step 4: Save to listings
-    supabase.table("listings").insert({
-        "title":            title,
-        "ebay_category":    ebay_category,
-        "ebay_category_id": ebay_category_id,
-        "weight_oz":        weight_oz,
-        "weight_lb":        weight_lb,
-        "price":            active_price,
-        "price_note":       price_note,
-        "price_used":       price_used,
-        "price_new":        price_new,
-        "photo_id":         primary_photo,
-        "condition":        condition,
-        "quantity":         quantity,
-        "status":           "scanned",
-        "created_at":       scanned_at,
-    }).execute()
+    print(f"   💾 Step 4: Saving to Supabase...")
+    try:
+        insert_result = supabase.table("listings").insert({
+            "title":            title,
+            "ebay_category":    ebay_category,
+            "ebay_category_id": ebay_category_id,
+            "weight_oz":        weight_oz,
+            "weight_lb":        weight_lb,
+            "price":            active_price,
+            "price_note":       price_note,
+            "price_used":       price_used,
+            "price_new":        price_new,
+            "photo_id":         primary_photo,
+            "condition":        condition,
+            "quantity":         quantity,
+            "status":           "scanned",
+            "created_at":       scanned_at,
+        }).execute()
+        if not insert_result.data:
+            print(f"   ⚠️  Insert returned no data — possible error")
+        else:
+            print(f"   ✅ Saved: {title}")
+    except Exception as e:
+        print(f"   ❌ Insert failed: {e}")
+        supabase.table("listing_groups").update({"status": "error"}).eq("id", group_id).execute()
+        return
 
     supabase.table("listing_groups").update({"status": "done"}).eq("id", group_id).execute()
-    print(f"   ✅ Saved: {title} — ${active_price:.2f} | {ebay_category}")
+    print(f"   ✅ Done: {title} — ${active_price:.2f} | {ebay_category}")
 
 # ── watcher loop ──────────────────────────────────────────────────────────────
 def main():
