@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Lister AI v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green-dark:   #27500A;
+  --green-mid:    #3B6D11;
+  --green-light:  #C0DD97;
+  --green-bg:     #EAF3DE;
+  --green-border: #97C459;
+  --blue-dark:    #0C447C;
+  --blue-mid:     #185FA5;
+  --blue-light:   #B5D4F4;
+  --blue-bg:      #E6F1FB;
+  --blue-border:  #85B7EB;
+  --red-bg:       #FCEBEB;
+  --red-text:     #A32D2D;
+  --red-border:   #F09595;
+  --amber-bg:     #FAEEDA;
+  --amber-text:   #633806;
+  --surface:      #F8F7F4;
+  --card:         #FFFFFF;
+  --border:       rgba(0,0,0,0.1);
+  --border-med:   rgba(0,0,0,0.15);
+  --text:         #1a1a1a;
+  --text-2:       #555;
+  --text-3:       #888;
+  --radius:       12px;
+  --radius-sm:    8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--surface);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+/* ── layout ── */
+.app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+  display: flex; align-items: center; gap: 10px;
+  position: sticky; top: 0; z-index: 10;
+}
+.logo { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; color: var(--text); }
+.logo-mark {
+  width: 24px; height: 24px; border-radius: 6px;
+  background: var(--green-dark);
+  display: flex; align-items: center; justify-content: center;
+}
+.logo-mark svg { width: 13px; height: 13px; color: var(--green-light); }
+.logo-sub { font-size: 10px; color: var(--text-3); letter-spacing: 0.05em; }
+.spacer { flex: 1; }
+.nav-pills { display: flex; gap: 4px; }
+.nav-pill {
+  font-size: 12px; padding: 5px 12px; border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--text-2); cursor: pointer;
+  transition: all 0.15s;
+}
+.nav-pill.active { background: var(--green-dark); color: var(--green-light); border-color: var(--green-dark); }
+
+.view { flex: 1; padding: 16px; display: none; flex-direction: column; gap: 14px; }
+.view.active { display: flex; }
+
+/* ── buttons ── */
+.btn-green {
+  background: var(--green-dark); color: var(--green-light);
+  border: none; border-radius: var(--radius-sm); padding: 14px 18px;
+  font-size: 14px; font-weight: 500; cursor: pointer; width: 100%;
+  font-family: inherit; transition: background 0.15s;
+}
+.btn-green:hover { background: var(--green-mid); }
+.btn-green:disabled { background: #ccc; color: #999; cursor: default; }
+.btn-ghost {
+  background: transparent; color: var(--text-2);
+  border: 1px solid var(--border-med); border-radius: var(--radius-sm); padding: 11px 18px;
+  font-size: 13px; cursor: pointer; width: 100%; font-family: inherit; transition: all 0.12s;
+}
+.btn-ghost:hover { background: var(--border); }
+.btn-red {
+  background: var(--red-bg); color: var(--red-text);
+  border: 1px solid var(--red-border); border-radius: var(--radius-sm); padding: 8px 14px;
+  font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.12s;
+}
+.btn-sm {
+  font-size: 12px; padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border-med); background: var(--card);
+  color: var(--text-2); cursor: pointer; font-family: inherit;
+}
+
+/* ── cards ── */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.card-head {
+  padding: 11px 14px; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-head-title { font-size: 13px; font-weight: 500; }
+.card-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
+/* ── condition selector ── */
+.cond-stack { display: flex; flex-direction: column; gap: 8px; }
+.cond-btn {
+  border-radius: var(--radius); padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer; border: 2px solid transparent; transition: all 0.15s;
+}
+.cond-btn.used { background: var(--blue-bg); }
+.cond-btn.used.active { border-color: var(--blue-mid); }
+.cond-btn.new  { background: var(--green-bg); }
+.cond-btn.new.active  { border-color: var(--green-mid); }
+.cond-icon {
+  width: 36px; height: 36px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.cond-btn.used .cond-icon { background: var(--blue-light); }
+.cond-btn.used .cond-icon svg { color: var(--blue-dark); }
+.cond-btn.new  .cond-icon { background: var(--green-light); }
+.cond-btn.new  .cond-icon svg { color: var(--green-dark); }
+.cond-icon svg { width: 16px; height: 16px; }
+.cond-label { font-size: 15px; font-weight: 500; }
+.cond-btn.used .cond-label { color: var(--blue-dark); }
+.cond-btn.new  .cond-label { color: var(--green-dark); }
+.cond-sub { font-size: 11px; margin-top: 1px; }
+.cond-btn.used .cond-sub { color: var(--blue-mid); }
+.cond-btn.new  .cond-sub { color: var(--green-mid); }
+.cond-check {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  margin-left: auto;
+}
+.cond-btn.used .cond-check { border: 2px solid var(--blue-mid); }
+.cond-btn.used.active .cond-check { background: var(--blue-mid); border-color: var(--blue-mid); }
+.cond-btn.new  .cond-check { border: 2px solid var(--green-mid); }
+.cond-btn.new.active  .cond-check { background: var(--green-mid); border-color: var(--green-mid); }
+.cond-check svg { width: 10px; height: 10px; color: white; display: none; }
+.cond-btn.active .cond-check svg { display: block; }
+
+/* ── stat row ── */
+.stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+.stat-num { font-size: 22px; font-weight: 500; }
+.stat-lbl { font-size: 10px; color: var(--text-3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* ── upload zone ── */
+.upload-zone {
+  border: 2px dashed var(--border-med); border-radius: var(--radius-sm);
+  padding: 24px 16px; text-align: center; cursor: pointer; transition: border-color 0.15s;
+}
+.upload-zone:hover { border-color: var(--green-mid); }
+.upload-zone.has-photos { border-color: var(--green-border); border-style: solid; background: var(--green-bg); }
+.upload-icon { width: 40px; height: 40px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
+.upload-icon svg { width: 18px; height: 18px; color: var(--text-3); }
+.upload-zone.has-photos .upload-icon { background: var(--green-light); }
+.upload-zone.has-photos .upload-icon svg { color: var(--green-dark); }
+.upload-main { font-size: 14px; font-weight: 500; }
+.upload-sub  { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+.upload-zone.has-photos .upload-main { color: var(--green-dark); }
+
+/* ── photo strip ── */
+.photo-strip { display: flex; gap: 6px; flex-wrap: wrap; }
+.photo-thumb { width: 56px; height: 56px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0; }
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── condition toggle ── */
+.cond-toggle { display: flex; gap: 6px; }
+.cond-tog-opt {
+  flex: 1; padding: 8px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-med); text-align: center;
+  font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text-3);
+  background: var(--card); transition: all 0.12s;
+}
+.cond-tog-opt.on-used { background: var(--blue-bg); border-color: var(--blue-mid); color: var(--blue-dark); }
+.cond-tog-opt.on-new  { background: var(--green-bg); border-color: var(--green-mid); color: var(--green-dark); }
+
+/* ── quantity ── */
+.qty-row { display: flex; align-items: center; gap: 10px; }
+.qty-label { font-size: 12px; color: var(--text-2); }
+.qty-ctrl { display: flex; align-items: center; border: 1px solid var(--border-med); border-radius: var(--radius-sm); overflow: hidden; }
+.qty-btn { width: 36px; height: 36px; background: var(--surface); border: none; cursor: pointer; font-size: 16px; color: var(--text); display: flex; align-items: center; justify-content: center; transition: background 0.12s; }
+.qty-btn:hover { background: var(--border); }
+.qty-val { width: 40px; text-align: center; font-size: 15px; font-weight: 500; line-height: 36px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+
+/* ── submitted items ── */
+.sub-list { display: flex; flex-direction: column; gap: 6px; }
+.sub-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.sub-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sub-dot.done    { background: #1D9E75; }
+.sub-dot.scanning { background: #EF9F27; }
+.sub-dot.error   { background: var(--red-text); }
+.sub-info { flex: 1; min-width: 0; }
+.sub-title { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub-meta  { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+.sub-badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+.sub-badge.done    { background: var(--green-bg); color: var(--green-dark); }
+.sub-badge.scanning { background: var(--amber-bg); color: var(--amber-text); }
+.sub-badge.error   { background: var(--red-bg); color: var(--red-text); }
+
+/* ── batch complete ── */
+.batch-complete {
+  background: var(--green-bg); border: 1px solid var(--green-border);
+  border-radius: var(--radius); padding: 18px; text-align: center;
+}
+.bc-title { font-size: 15px; font-weight: 500; color: var(--green-dark); }
+.bc-sub   { font-size: 12px; color: var(--green-mid); margin-top: 4px; }
+
+/* ── dashboard ── */
+.dash-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.dash-stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.items-grid { display: flex; flex-direction: column; gap: 10px; }
+.item-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.item-photo { height: 160px; background: var(--surface); position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.item-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.item-photo .no-photo svg { width: 28px; height: 28px; color: var(--text-3); opacity: 0.4; }
+.ic-badge { position: absolute; top: 8px; left: 8px; font-size: 10px; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
+.ic-badge.used { background: var(--blue-light); color: var(--blue-dark); }
+.ic-badge.new  { background: var(--green-light); color: var(--green-dark); }
+.ic-del { position: absolute; top: 7px; right: 7px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.4); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.12s; }
+.ic-del:hover { background: var(--red-text); }
+.ic-del svg { width: 10px; height: 10px; color: white; }
+.item-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.item-title-input {
+  font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.4;
+  border: none; border-bottom: 1px dashed transparent; background: transparent;
+  width: 100%; font-family: inherit; cursor: text; padding: 0 0 2px;
+  transition: border-color 0.12s;
+}
+.item-title-input:hover { border-bottom-color: var(--border-med); }
+.item-title-input:focus { outline: none; border-bottom-color: var(--green-mid); }
+.field-row { display: flex; align-items: center; gap: 8px; }
+.field-lbl { font-size: 10px; color: var(--text-3); min-width: 56px; text-transform: uppercase; letter-spacing: 0.05em; }
+.field-val { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; }
+.price-input {
+  font-size: 14px; font-weight: 500; color: var(--text);
+  border: none; border-bottom: 1.5px solid var(--green-mid);
+  background: transparent; width: 90px; padding: 0 0 2px;
+  font-family: inherit; outline: none;
+}
+.cat-edit {
+  font-size: 11px; color: var(--text-2); flex: 1; cursor: pointer;
+  border: none; border-bottom: 1px dashed transparent; background: transparent;
+  font-family: 'DM Mono', monospace; padding: 0 0 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: border-color 0.12s;
+}
+.cat-edit:hover { border-bottom-color: var(--border-med); }
+.cat-edit:focus { outline: none; border-bottom-color: var(--green-mid); }
+.note-pill { font-size: 10px; padding: 2px 7px; border-radius: 20px; background: var(--amber-bg); color: var(--amber-text); flex-shrink: 0; }
+
+/* ── confirm banner ── */
+.confirm-banner {
+  background: var(--red-bg); border: 1px solid var(--red-border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.confirm-text { font-size: 12px; color: var(--red-text); }
+.confirm-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.btn-confirm-cancel { font-size: 12px; padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--card); cursor: pointer; font-family: inherit; }
+.btn-confirm-delete { font-size: 12px; padding: 5px 12px; border-radius: var(--radius-sm); border: none; background: var(--red-text); color: white; cursor: pointer; font-family: inherit; }
+
+/* ── misc ── */
+.section-label { font-size: 10px; font-weight: 500; color: var(--text-3); letter-spacing: 0.06em; text-transform: uppercase; }
+.hint-text { font-size: 11px; color: var(--text-3); text-align: center; }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-3); font-size: 13px; }
+.processing-badge {
+  background: var(--amber-bg); color: var(--amber-text);
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  font-size: 12px; display: flex; align-items: center; gap: 8px;
+}
+.spinner { width: 14px; height: 14px; border: 2px solid var(--amber-text); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+input[type=file] { display: none; }
+
+@media (min-width: 640px) {
+  .items-grid { display: grid; grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- topbar -->
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </div>
+      Lister AI
+      <span class="logo-sub">v2</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="nav-pills">
+      <button class="nav-pill active" onclick="switchView('scan')">Scan</button>
+      <button class="nav-pill" onclick="switchView('dashboard')">Dashboard</button>
+    </div>
+  </div>
+
+  <!-- ── SCAN VIEW ── -->
+  <div class="view active" id="scanView">
+
+    <!-- START STATE -->
+    <div id="startState">
+      <div class="section-label" style="margin-bottom:10px">Item condition</div>
+      <div class="cond-stack">
+        <div class="cond-btn used active" onclick="selectCond('used')">
+          <div class="cond-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="cond-label">Used</div>
+            <div class="cond-sub">Pre-owned condition</div>
+          </div>
+          <div class="cond-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </div>
+        <div class="cond-btn new" onclick="selectCond('new')">
+          <div class="cond-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="cond-label">New</div>
+            <div class="cond-sub">Unused, sealed</div>
+          </div>
+          <div class="cond-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </div>
+      </div>
+      <div style="height:16px"></div>
+      <button class="btn-green" onclick="startBatch()">Start batch scan</button>
+      <div class="hint-text" style="margin-top:8px" id="condHint">All items will be marked as <strong>used</strong></div>
+    </div>
+
+    <!-- ACTIVE BATCH STATE -->
+    <div id="activeState" style="display:none">
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-num" id="sc-scanned">0</div><div class="stat-lbl">Scanned</div></div>
+        <div class="stat-card"><div class="stat-num" id="sc-processing">0</div><div class="stat-lbl">Processing</div></div>
+        <div class="stat-card"><div class="stat-num" id="sc-done">0</div><div class="stat-lbl">Done</div></div>
+      </div>
+
+      <!-- current item -->
+      <div class="card" id="currentItemCard">
+        <div class="card-head">
+          <span class="card-head-title" id="itemLabel">Item 1</span>
+          <span style="font-size:11px;color:var(--green-mid)">Ready</span>
+        </div>
+        <div class="card-body">
+          <input type="file" id="photoInput" accept="image/*" multiple onchange="handlePhotos(this)">
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('photoInput').click()">
+            <div class="upload-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+            <div class="upload-main" id="uploadMain">Take photo or upload</div>
+            <div class="upload-sub">Up to 10 photos per item</div>
+          </div>
+          <div class="photo-strip" id="photoStrip" style="display:none"></div>
+          <div>
+            <div class="section-label" style="margin-bottom:6px">Condition</div>
+            <div class="cond-toggle" id="itemCondToggle">
+              <div class="cond-tog-opt on-used" id="tog-used" onclick="setItemCond('used')">Used</div>
+              <div class="cond-tog-opt" id="tog-new" onclick="setItemCond('new')">New</div>
+            </div>
+          </div>
+          <div class="qty-row">
+            <span class="qty-label">Quantity</span>
+            <div class="qty-ctrl">
+              <button class="qty-btn" onclick="changeQty(-1)">−</button>
+              <div class="qty-val" id="qtyVal">1</div>
+              <button class="qty-btn" onclick="changeQty(1)">+</button>
+            </div>
+          </div>
+          <button class="btn-green" id="doneBtn" onclick="submitItem()" disabled>Add photos to continue</button>
+        </div>
+      </div>
+
+      <!-- submitted items list -->
+      <div id="submittedSection" style="display:none">
+        <div class="section-label" style="margin-bottom:8px">This batch</div>
+        <div class="sub-list" id="subList"></div>
+      </div>
+
+      <button class="btn-ghost" onclick="endBatch()">End batch</button>
+    </div>
+
+    <!-- BATCH COMPLETE STATE -->
+    <div id="completeState" style="display:none">
+      <div class="batch-complete">
+        <div class="bc-title">Batch complete</div>
+        <div class="bc-sub" id="batchSummary">Items are being processed</div>
+      </div>
+      <div class="sub-list" id="completeList"></div>
+      <button class="btn-green" onclick="resetBatch()">Start new batch</button>
+      <button class="btn-ghost" onclick="switchView('dashboard')">View dashboard</button>
+    </div>
+
+  </div>
+
+  <!-- ── DASHBOARD VIEW ── -->
+  <div class="view" id="dashView">
+
+    <div id="clearBanner" style="display:none">
+      <div class="confirm-banner">
+        <div class="confirm-text">Delete all items? This cannot be undone.</div>
+        <div class="confirm-actions">
+          <button class="btn-confirm-cancel" onclick="hideClearBanner()">Cancel</button>
+          <button class="btn-confirm-delete" onclick="confirmClear()">Delete all</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="processingBadge" style="display:none" class="processing-badge">
+      <div class="spinner"></div>
+      <span id="processingText">Items processing...</span>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num" id="d-total">—</div><div class="stat-lbl">Items</div></div>
+      <div class="stat-card"><div class="stat-num" id="d-proc">—</div><div class="stat-lbl">Processing</div></div>
+      <div class="stat-card"><div class="stat-num" id="d-value">—</div><div class="stat-lbl">Value</div></div>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-green" style="flex:2;padding:11px" onclick="downloadCSV()">Download eBay CSV</button>
+      <button class="btn-sm" onclick="switchView('scan')">New batch</button>
+      <button class="btn-red" onclick="showClearBanner()">Clear all</button>
+    </div>
+
+    <div class="items-grid" id="itemsGrid">
+      <div class="empty-state">No items yet — start a batch scan to add items.</div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// ── state ──────────────────────────────────────────────────────────────────
+let batchCond    = 'used';
+let itemCond     = 'used';
+let itemQty      = 1;
+let itemPhotos   = [];
+let currentGroupId = null;
+let batchItems   = [];
+let sessionId    = crypto.randomUUID();
+let uploading    = false;
+
+// ── view switcher ──────────────────────────────────────────────────────────
+function switchView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-pill').forEach(el => el.classList.remove('active'));
+  document.getElementById(v + 'View').classList.add('active');
+  document.querySelectorAll('.nav-pill').forEach(el => {
+    if (el.textContent.toLowerCase().includes(v.slice(0,4))) el.classList.add('active');
+  });
+  if (v === 'dashboard') { loadDashboard(); startDashPolling(); }
+}
+
+// ── condition selection ────────────────────────────────────────────────────
+function selectCond(c) {
+  batchCond = c;
+  document.querySelectorAll('.cond-btn').forEach(el => el.classList.remove('active'));
+  document.querySelector('.cond-btn.' + c).classList.add('active');
+  document.getElementById('condHint').innerHTML =
+    `All items will be marked as <strong>${c}</strong>`;
+}
+
+// ── start batch ────────────────────────────────────────────────────────────
+async function startBatch() {
+  sessionId = crypto.randomUUID();
+  batchItems = [];
+  document.getElementById('startState').style.display = 'none';
+  document.getElementById('activeState').style.display = '';
+  itemCond = batchCond;
+  updateCondToggle();
+  await createNewGroup();
+}
+
+async function createNewGroup() {
+  itemPhotos = []; itemQty = 1;
+  resetUploadZone();
+  document.getElementById('qtyVal').textContent = '1';
+  updateCondToggle();
+  document.getElementById('doneBtn').disabled = true;
+  document.getElementById('doneBtn').textContent = 'Add photos to continue';
+  document.getElementById('itemLabel').textContent = `Item ${batchItems.length + 1}`;
+  const resp = await fetch('/api/groups', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({session_id: sessionId, condition: itemCond}),
+  });
+  const data = await resp.json();
+  currentGroupId = data.group_id;
+}
+
+// ── item condition toggle ──────────────────────────────────────────────────
+function setItemCond(c) {
+  itemCond = c;
+  updateCondToggle();
+}
+function updateCondToggle() {
+  document.getElementById('tog-used').className = 'cond-tog-opt' + (itemCond === 'used' ? ' on-used' : '');
+  document.getElementById('tog-new').className  = 'cond-tog-opt' + (itemCond === 'new'  ? ' on-new'  : '');
+}
+
+// ── qty ────────────────────────────────────────────────────────────────────
+function changeQty(d) {
+  itemQty = Math.max(1, itemQty + d);
+  document.getElementById('qtyVal').textContent = itemQty;
+}
+
+// ── photo upload ───────────────────────────────────────────────────────────
+async function handlePhotos(input) {
+  if (!input.files.length || uploading) return;
+  uploading = true;
+  const zone = document.getElementById('uploadZone');
+  const strip = document.getElementById('photoStrip');
+  const files = Array.from(input.files).slice(0, 10 - itemPhotos.length);
+
+  for (const file of files) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const resp = await fetch(`/api/groups/${currentGroupId}/photos`, {
+        method: 'POST', body: formData,
+      });
+      const data = await resp.json();
+      itemPhotos.push(data);
+
+      const thumb = document.createElement('div');
+      thumb.className = 'photo-thumb';
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      thumb.appendChild(img);
+      strip.insertBefore(thumb, strip.firstChild);
+      strip.style.display = 'flex';
+    } catch (e) {
+      console.error('Photo upload failed:', e);
+    }
+  }
+
+  const count = itemPhotos.length;
+  document.getElementById('uploadMain').textContent = `${count} photo${count > 1 ? 's' : ''} added — tap to add more`;
+  zone.classList.add('has-photos');
+  document.getElementById('doneBtn').disabled = false;
+  document.getElementById('doneBtn').textContent = 'Done — submit item';
+  uploading = false;
+  input.value = '';
+}
+
+function resetUploadZone() {
+  document.getElementById('uploadMain').textContent = 'Take photo or upload';
+  document.getElementById('uploadZone').classList.remove('has-photos');
+  document.getElementById('photoStrip').innerHTML = '';
+  document.getElementById('photoStrip').style.display = 'none';
+}
+
+// ── submit item ────────────────────────────────────────────────────────────
+async function submitItem() {
+  if (!itemPhotos.length || !currentGroupId) return;
+  const btn = document.getElementById('doneBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  await fetch(`/api/groups/${currentGroupId}/submit`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({condition: itemCond, quantity: itemQty}),
+  });
+
+  batchItems.push({
+    group_id:    currentGroupId,
+    condition:   itemCond,
+    qty:         itemQty,
+    photo_count: itemPhotos.length,
+    status:      'scanning',
+  });
+
+  updateBatchStats();
+  renderSubmittedList();
+  document.getElementById('submittedSection').style.display = '';
+
+  await createNewGroup();
+}
+
+// ── batch stats ────────────────────────────────────────────────────────────
+function updateBatchStats() {
+  document.getElementById('sc-scanned').textContent   = batchItems.length;
+  document.getElementById('sc-processing').textContent = batchItems.filter(i => i.status === 'scanning').length;
+  document.getElementById('sc-done').textContent       = batchItems.filter(i => i.status === 'done').length;
+}
+
+function renderSubmittedList() {
+  const list = document.getElementById('subList');
+  list.innerHTML = batchItems.slice().reverse().map(item => `
+    <div class="sub-item">
+      <div class="sub-dot ${item.status === 'done' ? 'done' : 'scanning'}"></div>
+      <div class="sub-info">
+        <div class="sub-title">Item — ${item.photo_count} photo${item.photo_count > 1 ? 's' : ''}</div>
+        <div class="sub-meta">Qty ${item.qty} · ${item.condition}</div>
+      </div>
+      <span class="sub-badge ${item.status === 'done' ? 'done' : 'scanning'}">
+        ${item.status === 'done' ? 'Done' : 'Scanning'}
+      </span>
+    </div>
+  `).join('');
+}
+
+// ── end batch ──────────────────────────────────────────────────────────────
+async function endBatch() {
+  if (currentGroupId) {
+    try {
+      await fetch(`/api/groups/${currentGroupId}/submit`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({condition: itemCond, quantity: itemQty}),
+      }).catch(() => {});
+    } catch (e) {}
+    currentGroupId = null;
+  }
+  document.getElementById('activeState').style.display = 'none';
+  document.getElementById('completeState').style.display = '';
+  document.getElementById('batchSummary').textContent =
+    `${batchItems.length} item${batchItems.length !== 1 ? 's' : ''} submitted for processing`;
+
+  const list = document.getElementById('completeList');
+  list.innerHTML = batchItems.slice().reverse().map(item => `
+    <div class="sub-item">
+      <div class="sub-dot done"></div>
+      <div class="sub-info">
+        <div class="sub-title">Item — ${item.photo_count} photo${item.photo_count > 1 ? 's' : ''}</div>
+        <div class="sub-meta">Qty ${item.qty} · ${item.condition}</div>
+      </div>
+      <span class="sub-badge done">Submitted</span>
+    </div>
+  `).join('');
+}
+
+function resetBatch() {
+  batchItems = []; itemPhotos = []; currentGroupId = null;
+  document.getElementById('completeState').style.display = 'none';
+  document.getElementById('startState').style.display = '';
+}
+
+// ── dashboard ──────────────────────────────────────────────────────────────
+let dashPollTimer = null;
+let lastItemCount = 0;
+
+async function loadDashboard() {
+  try {
+    const [statsResp, itemsResp] = await Promise.all([
+      fetch('/api/stats'),
+      fetch('/api/listings'),
+    ]);
+    const stats = await statsResp.json();
+    const data  = await itemsResp.json();
+    const items = data.items || [];
+
+    document.getElementById('d-total').textContent = stats.total;
+    document.getElementById('d-proc').textContent  = stats.processing;
+    document.getElementById('d-value').textContent = '$' + stats.value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+
+    const procBadge = document.getElementById('processingBadge');
+    if (stats.processing > 0) {
+      procBadge.style.display = 'flex';
+      document.getElementById('processingText').textContent =
+        `${stats.processing} item${stats.processing > 1 ? 's' : ''} processing...`;
+    } else {
+      procBadge.style.display = 'none';
+    }
+
+    renderItems(items);
+    lastItemCount = stats.total;
+  } catch (e) {
+    console.error('Dashboard load error:', e);
+  }
+}
+
+function startDashPolling() {
+  if (dashPollTimer) clearInterval(dashPollTimer);
+  dashPollTimer = setInterval(loadDashboard, 8000);
+}
+
+function renderItems(items) {
+  const grid = document.getElementById('itemsGrid');
+  if (!items.length) {
+    grid.innerHTML = '<div class="empty-state">No items yet — scan some products to get started.</div>';
+    return;
+  }
+  grid.innerHTML = items.map(item => {
+    const cond = item.condition || 'used';
+    const note = item.price_note ? `<span class="note-pill">${item.price_note} price</span>` : '';
+    const photoSrc = item.photo_url || '';
+    const photoEl = photoSrc
+      ? `<img src="${photoSrc}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=no-photo><svg viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'1.2\\'><path d=\\'M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z\\'/><circle cx=\\'12\\' cy=\\'13\\' r=\\'4\\'/></svg></div>'">`
+      : `<div class="no-photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div>`;
+
+    return `
+    <div class="item-card" id="ic-${item.id}">
+      <div class="item-photo">
+        ${photoEl}
+        <span class="ic-badge ${cond}">${cond}</span>
+        <button class="ic-del" onclick="deleteItem('${item.id}')" title="Delete">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="item-body">
+        <input class="item-title-input" value="${escHtml(item.title)}"
+          onblur="saveField('${item.id}','title',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()">
+        <div class="field-row">
+          <span class="field-lbl">Price</span>
+          <input class="price-input" type="number" step="0.01" value="${item.price.toFixed(2)}"
+            onblur="saveField('${item.id}','price',parseFloat(this.value))"
+            onkeydown="if(event.key==='Enter')this.blur()">
+          ${note}
+        </div>
+        <div class="field-row">
+          <span class="field-lbl">Condition</span>
+          <div style="display:flex;gap:4px">
+            <div class="cond-tog-opt ${cond==='used'?'on-used':''}" onclick="saveCondition('${item.id}','used',this)" style="padding:4px 10px;font-size:11px">Used</div>
+            <div class="cond-tog-opt ${cond==='new'?'on-new':''}" onclick="saveCondition('${item.id}','new',this)" style="padding:4px 10px;font-size:11px">New</div>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-lbl">Category</span>
+          <input class="cat-edit" value="${escHtml(item.ebay_category)}"
+            onblur="saveField('${item.id}','ebay_category',this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function saveField(id, field, value) {
+  try {
+    await fetch(`/api/listings/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({[field]: value}),
+    });
+  } catch (e) { console.error('Save failed:', e); }
+}
+
+async function saveCondition(id, cond, el) {
+  const parent = el.parentElement;
+  parent.querySelectorAll('.cond-tog-opt').forEach(e => {
+    e.className = 'cond-tog-opt';
+  });
+  el.className = `cond-tog-opt on-${cond}`;
+  const badge = document.querySelector(`#ic-${id} .ic-badge`);
+  if (badge) { badge.className = `ic-badge ${cond}`; badge.textContent = cond; }
+  await saveField(id, 'condition', cond);
+  loadDashboard();
+}
+
+async function deleteItem(id) {
+  document.getElementById('ic-' + id)?.remove();
+  await fetch(`/api/listings/${id}`, {method: 'DELETE'});
+  loadDashboard();
+}
+
+function showClearBanner()  { document.getElementById('clearBanner').style.display = ''; }
+function hideClearBanner()  { document.getElementById('clearBanner').style.display = 'none'; }
+async function confirmClear() {
+  hideClearBanner();
+  await fetch('/api/listings', {method: 'DELETE'});
+  loadDashboard();
+}
+
+async function downloadCSV() {
+  const a = document.createElement('a');
+  a.href = '/api/export/csv';
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// init
+loadDashboard();
+</script>
+</body>
+</html>
