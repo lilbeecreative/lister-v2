@@ -106,6 +106,14 @@ async def submit_group(group_id: str, body: dict):
     return {"ok": True}
 
 
+@app.get("/api/groups/{group_id}/status")
+async def get_group_status(group_id: str):
+    result = supabase.table("listing_groups").select("status").eq("id", group_id).execute()
+    if not result.data:
+        raise HTTPException(404, "Group not found")
+    return {"status": result.data[0]["status"]}
+
+
 @app.get("/api/listings")
 async def get_listings():
     result = (
